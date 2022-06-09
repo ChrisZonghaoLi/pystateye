@@ -13,6 +13,10 @@ from matplotlib.ticker import FormatStrFormatter
 plt.style.use(style='default')
 plt.rcParams['font.family']='calibri'
 
+import time
+
+named_tuple = time.localtime() # get struct_time
+time_string = time.strftime("%m_%d_%Y_%H_%M_%S", named_tuple)
 
 def statistical_eye(pulse_response, 
                                 samples_per_symbol=128, 
@@ -332,7 +336,7 @@ def statistical_eye(pulse_response,
         
         ax.set_ylabel('voltage (mV)')
         ax.set_xlabel('time (UI)')
-        plt.show()
+        fig.savefig(f'pics/stateye_{time_string}.png', bbox_inches='tight')
         
     return{'center_COM': COM,
                'eye_heights': eye_heights,
