@@ -334,7 +334,7 @@ def statistical_eye(pulse_response,
         ax.set_xlabel('time (UI)')
         plt.show()
         
-    return{'COM': COM,
+    return{'center_COM': COM,
                'eye_heights': eye_heights,
                'eye_heights_mean': eye_heights_mean,
                'distortion_heights': distortion_heights,
