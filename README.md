@@ -7,3 +7,5 @@ Most of the work here are based on the OIF standard (https://www.oiforum.com/wp-
 - <'statistical_eye.py'>: main file
 - <'channel_pulse_response_test.csv'>: a test example used to test <'statistical_eye.py'>
 - <'test.py'>: an example used to test the <'statistical_eye.py'>
+
+![](pics/stateye_06_09_2022_19_48_43.png)
