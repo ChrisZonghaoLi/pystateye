@@ -34,17 +34,10 @@ def statistical_eye(pulse_response,
                                 jitter_flag=False,
                                 plot=False,
                                 pdf_conv_flag=True,
-                                diff_signal=True,
-                                **kwargs):
+                                diff_signal=True):
     
     # https://www.oiforum.com/wp-content/uploads/2019/01/OIF-CEI-04.0.pdf
     # implementation of statistical eye diagram with the inclusion of noise and jitter
-    # M = 4
-    # sigma_noise = 1.327780102275975e-4
-    # # choose a vh step  such that the pdf does not vary much with x
-    # vh_size = 2048 # in matlab this number is 2049
-    # window_size = 128
-    # sample_size = 9
     
     # print(pulse_response)
     pulse_response = np.array(pulse_response)
