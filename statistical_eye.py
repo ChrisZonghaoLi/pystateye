@@ -52,16 +52,16 @@ def statistical_eye(pulse_response,
     idx_main = np.argmax(abs(pulse_input)) # this is the c0, main cursor, from OIF doc, see section 2.C.5 and 2.B.2
     # print(f'idx_main: {idx_main}')
 
-    
-    if M == 2:
-        d = np.array([-1, 1]).reshape(1,M) # direction of pulse polarity
-        if pdf_conv_flag == False and sample_size >= 16:
-            sample_size = 16
-    elif M == 4:
-        d = np.array([-1, -1/3, 1/3, 1]).reshape(1,M)  # direction of pulse polarity
-        if pdf_conv_flag == False and sample_size >= 9:
-            sample_size = 9
-    else:
+    try:
+      if M == 2:
+          d = np.array([-1, 1]).reshape(1,M) # direction of pulse polarity
+          if pdf_conv_flag == False and sample_size >= 16:
+              sample_size = 16
+      lif M == 4:
+          d = np.array([-1, -1/3, 1/3, 1]).reshape(1,M)  # direction of pulse polarity
+          if pdf_conv_flag == False and sample_size >= 9:
+              sample_size = 9
+    except:
         print('M has to be either 2 or 4.')
 
     A_window_min = abs(pulse_input[idx_main]) * -A_window_multiplier
