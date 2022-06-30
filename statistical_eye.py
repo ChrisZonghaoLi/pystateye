@@ -4,6 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.stats import norm
 from scipy.signal import argrelextrema
+from scipy.interpolate import interp1d
 
 import seaborn as sns
 
@@ -19,27 +20,49 @@ named_tuple = time.localtime() # get struct_time
 time_string = time.strftime("%m_%d_%Y_%H_%M_%S", named_tuple)
 
 def statistical_eye(pulse_response, 
-                                samples_per_symbol=128, 
-                                window_size=128, 
-                                vh_size=2048, 
-                                M=4, 
-                                A_window_multiplier=2, 
+                                samples_per_symbol=8, 
+                                M=4, # 2 for NRZ and 4 for PAM4
+                                vh_size=2048, # vertical voltage discretized level
+                                A_window_multiplier=2, # control the vertical viewing space of the plot
                                 sample_size=16,
-                                mu_noise=0, 
-                                sigma_noise=1.33e-4, 
-                                mu_jitter=1.6,
-                                sigma_jitter=1.92, 
+                                mu_noise=0, # V
+                                sigma_noise=1.33e-4, # V 
+                                mu_jitter=0.0125, # in terms of UI
+                                sigma_jitter=0.015, # in terms of UI
                                 target_BER=2.4e-4,
                                 noise_flag=False,
                                 jitter_flag=False,
                                 plot=False,
-                                pdf_conv_flag=True,
-                                diff_signal=True):
+                                pdf_conv_flag=True, # if you want to do pdf convolution to find all ISI conbinations, False will then brute force find all combination
+                                diff_signal=True, # eye diagram amplitude will be half of the pulse response magnitude
+                                upsampling=16, # interpolate the time domain signal to give better visulization, also allows modeling higher sampling rate without frequency domain extrapolation
+                                interpolation_type='linear' # interpolation scheme, can be either 'linear' or 'cubic'
+                                ):
+    '''
+         https://www.oiforum.com/wp-content/uploads/2019/01/OIF-CEI-04.0.pdf
+        implementation of statistical eye diagram with the inclusion of noise and jitter
+        
+        pulse_response: pulse response of the channel
+        samples_per_symbol=128: samples per symbol
+        vh_size=2048: vertical voltage discretized level
+        M=4: 2 for NRZ and 4 for PAM4
+        A_window_multiplier=2: control the vertical viewing space of the plot
+        sample_size=16: how many symbols you want to sample across the pulse response, too many will lead to long runtime
+        mu_noise=0: mean value of noise in V, assuming Gaussian
+        sigma_noise=1.33e-4: std value of noise in V, assuming Gaussian
+        mu_jitter=0.0125: deterministic jitter, in terms of UI
+        sigma_jitter=0.015: random jitter, in terms of UI
+        target_BER=2.4e-4: target BER rate
+        noise_flag=False: switch for including noise or not
+        jitter_flag=False: switch for including jitter or not
+        plot=False: switch for plotting eye diagram or not
+        pdf_conv_flag=True: if you want to do pdf convolution to find all ISI conbinations, False will then brute force find all combination
+        diff_signal=True: eye diagram amplitude will be half of the pulse response magnitude
+        upsampling=16: interpolate the time domain signal to give better visulization, also allows modeling higher sampling rate without frequency domain extrapolation
+        interpolation_type='linear': interpolation scheme, can be either 'linear' or 'cubic'
+    '''
     
-    # https://www.oiforum.com/wp-content/uploads/2019/01/OIF-CEI-04.0.pdf
-    # implementation of statistical eye diagram with the inclusion of noise and jitter
-    
-    # print(pulse_response)
+    # remove the head and tail zero and remove DC component
     pulse_response = np.array(pulse_response)
     pulse_response_DC = pulse_response[0]
     pulse_response = pulse_response - pulse_response_DC # remove DC offset
@@ -49,19 +72,26 @@ def statistical_eye(pulse_response,
         pulse_input = pulse_response[window_start : window_end] * 0.5  # considering differential signaling
     else:
         pulse_input = pulse_response[window_start : window_end]  # considering signal-ended signaling
+        
+    # oversample the signal in case there is no enough samples per symbol
+    x = np.linspace(0, len(pulse_input)-1, num=len(pulse_input))
+    f = interp1d(x, pulse_input, kind=interpolation_type)
+    x_new = np.linspace(0, len(pulse_input)-1, num=len(pulse_input)*upsampling)
+    pulse_input = f(x_new)
+    samples_per_symbol = samples_per_symbol * upsampling
+    window_size = samples_per_symbol
+    
     idx_main = np.argmax(abs(pulse_input)) # this is the c0, main cursor, from OIF doc, see section 2.C.5 and 2.B.2
-    # print(f'idx_main: {idx_main}')
 
-    try:
-      if M == 2:
-          d = np.array([-1, 1]).reshape(1,M) # direction of pulse polarity
-          if pdf_conv_flag == False and sample_size >= 16:
-              sample_size = 16
-      lif M == 4:
-          d = np.array([-1, -1/3, 1/3, 1]).reshape(1,M)  # direction of pulse polarity
-          if pdf_conv_flag == False and sample_size >= 9:
-              sample_size = 9
-    except:
+    if M == 2:
+        d = np.array([-1, 1]).reshape(1,M) # direction of pulse polarity
+        if pdf_conv_flag == False and sample_size >= 16:
+            sample_size = 16
+    elif M == 4:
+        d = np.array([-1, -1/3, 1/3, 1]).reshape(1,M)  # direction of pulse polarity
+        if pdf_conv_flag == False and sample_size >= 9:
+            sample_size = 9
+    else:
         print('M has to be either 2 or 4.')
 
     A_window_min = abs(pulse_input[idx_main]) * -A_window_multiplier
@@ -70,7 +100,6 @@ def statistical_eye(pulse_response,
     vh = 0.5*(mybin_edges[1:] + mybin_edges[:-1])
     
     pdf_list = []
-    # using convolution to find the ISI pdf over the entire pulse response is faster than finding the all combinations then finding the histogram
     for idx in range(-int(window_size/2),int(window_size/2)):
         idx_sampled = idx_main+idx
         sampled_points = []
@@ -91,6 +120,7 @@ def statistical_eye(pulse_response,
         sampled_amps = np.array([pulse_input[i] for i in sampled_points]).reshape(-1,1)
         sampled_amps = sampled_amps @ d 
         
+        # using convolution to find the ISI pdf over the entire pulse response is faster than finding the all combinations then finding the histogram
         if pdf_conv_flag == True:
             pdf, _ = np.histogram(sampled_amps[0], mybin_edges) 
             pdf = pdf/sum(pdf)
@@ -103,6 +133,7 @@ def statistical_eye(pulse_response,
             
             pdf_list.append(pdf)
             
+        # brute force to find all ISI combinations
         if pdf_conv_flag == False:
             all_combs = np.array(np.meshgrid(*[sampled_amps[i] for i in range(len(sampled_amps))])).T.reshape(-1,len(sampled_amps))
             A = np.sum(all_combs, axis=1)
@@ -131,8 +162,8 @@ def statistical_eye(pulse_response,
     num_steps = int(1/jitter_xaxis_step_size)
     
     # https://e2e.ti.com/blogs_/b/analogwire/posts/timing-is-everything-jitter-specifications
-    # mu_jitter = samples_per_symbol * 0.1 # a typical mu 
-    # sigma_jitter = samples_per_symbol * 0.015 # by default for about 2.4e-4 BER rate
+    mu_jitter = mu_jitter * samples_per_symbol
+    sigma_jitter = sigma_jitter * samples_per_symbol
     jitter_pdf1 = norm.pdf(x_axis, -mu_jitter, sigma_jitter)
     jitter_pdf2 = norm.pdf(x_axis, mu_jitter, sigma_jitter)
 
@@ -221,7 +252,7 @@ def statistical_eye(pulse_response,
             contour_eye_center_horizontal = contour_list[idx_eye_center_levels_yaxis[i], :]
             idx_below_BER_horizontal = np.where(np.diff(np.signbit(contour_eye_center_horizontal-target_BER)))[0]
             idx_below_BER_horizontal_list.append(idx_below_BER_horizontal)
-            
+        
         # print(idx_eye_center_levels_yaxis)
         # print(idx_below_BER_horizontal_list)
         
@@ -233,14 +264,25 @@ def statistical_eye(pulse_response,
             idx_below_BER_horizontal_center = idx_below_BER_horizontal_list[1]
             idx_below_BER_horizontal_low = idx_below_BER_horizontal_list[2]
     
-        _width_center = np.diff(idx_below_BER_horizontal_center)
-        _idx1_width_center = np.argmax(_width_center) # make an assumption here: the biggest with jump on the horizontal center line is the center eye width
-        _idx2_width_center = _idx1_width_center + 1
-        eye_width_center = idx_below_BER_horizontal_center[_idx2_width_center] - idx_below_BER_horizontal_center[_idx1_width_center]
-        idx_eye_center_xaxis = idx_below_BER_horizontal_center[_idx1_width_center] + int(eye_width_center/2)
+        _width_center = []
+        
+        idx_below_BER_horizontal_center = [idx_below_BER_horizontal_center[n:n+2] for n in range(0, len(idx_below_BER_horizontal_center), 2)]
+        
+        for i in range(0, len(idx_below_BER_horizontal_center)):
+            _ = np.diff(idx_below_BER_horizontal_center[i])[0]
+            _width_center.append(_)
+    
+        # _width_center = np.diff(idx_below_BER_horizontal_center)
+        # print(idx_below_BER_horizontal_center)
+
+        _idx_with_center = np.argmax(_width_center)
+        _idx1_width_center = idx_below_BER_horizontal_center[_idx_with_center][0]  # make an assumption here: the biggest with jump on the horizontal center line is the center eye width
+        _idx2_width_center = idx_below_BER_horizontal_center[_idx_with_center][1]
+        eye_width_center = (_idx2_width_center - _idx1_width_center) 
+        idx_eye_center_xaxis = _idx1_width_center + int(eye_width_center/2)
         
         if M == 2:
-            eye_widths = [eye_width_center]
+            eye_widths = np.array([eye_width_center]) / samples_per_symbol
         if M == 4:
             _idx1_width_up = np.where(np.diff(np.signbit(idx_below_BER_horizontal_up-idx_eye_center_xaxis)))[0][0]
             _idx2_width_up = _idx1_width_up + 1
@@ -250,7 +292,7 @@ def statistical_eye(pulse_response,
             _idx2_width_low = _idx1_width_low + 1
             eye_width_low = idx_below_BER_horizontal_low[_idx2_width_low] - idx_below_BER_horizontal_low[_idx1_width_low]
     
-            eye_widths = [eye_width_up, eye_width_center, eye_width_low]
+            eye_widths = np.array([eye_width_up, eye_width_center, eye_width_low])/samples_per_symbol
     
         eye_widths_mean = np.mean(eye_widths)
         # print(idx_eye_center_xaxis)
@@ -323,7 +365,8 @@ def statistical_eye(pulse_response,
         elif jitter_flag == True and noise_flag == False:
             ax.set_title('$\mu_{{jitter}}$={:.2e} UI | $\sigma_{{jitter}}$={:.2e} UI'.format(mu_jitter/samples_per_symbol, sigma_jitter/samples_per_symbol))
         elif jitter_flag == True and noise_flag == True:
-            ax.set_title('$\mu_{{noise}}$={:.2e} V | $\sigma_{{noise}}$={:.2e} V | $\mu_{{jitter}}$={:.2e} samples | $\sigma_{{jitter}}$={:.2e} samples'.format(mu_noise, sigma_noise, mu_jitter, sigma_jitter))
+            ax.set_title('''$\mu_{{noise}}$={:.2e} V | $\sigma_{{noise}}$={:.2e} V 
+                                 $\mu_{{jitter}}$={:.2e} UI | $\sigma_{{jitter}}$={:.2e} UI '''.format(mu_noise, sigma_noise, mu_jitter/samples_per_symbol, sigma_jitter/samples_per_symbol))
         else:
             ax.set_title('Statistical Eye without Jitter or Noise')
         
@@ -331,14 +374,14 @@ def statistical_eye(pulse_response,
         ax.set_xlabel('time (UI)')
         fig.savefig(f'pics/stateye_{time_string}.png', bbox_inches='tight')
         
-    return{'center_COM': COM,
-               'eye_heights': eye_heights,
-               'eye_heights_mean': eye_heights_mean,
-               'distortion_heights': distortion_heights,
-               'distortion_heights_mean': distortion_heights_mean,
-               'eye_widths': eye_widths,
-               'eye_widths_mean': eye_widths_mean,
-               'A_levels': A_levels,
-               'eye_center_levels': eye_center_levels,
+    return{'center_COM (dB)': COM,
+               'eye_heights (V)': eye_heights,
+               'eye_heights_mean (V)': eye_heights_mean,
+               'distortion_heights (V)': distortion_heights,
+               'distortion_heights_mean (V)': distortion_heights_mean,
+               'eye_widths (UI)': eye_widths,
+               'eye_widths_mean (UI)': eye_widths_mean,
+               'A_levels (V)': A_levels,
+               'eye_center_levels (V)': eye_center_levels,
                'stateye': eye
         }
