@@ -39,7 +39,7 @@ def statistical_eye(pulse_response,
                                 interpolation_type='linear' # interpolation scheme, can be either 'linear' or 'cubic'
                                 ):
     '''
-         https://www.oiforum.com/wp-content/uploads/2019/01/OIF-CEI-04.0.pdf
+        https://www.oiforum.com/wp-content/uploads/2019/01/OIF-CEI-04.0.pdf
         implementation of statistical eye diagram with the inclusion of noise and jitter
         
         pulse_response: pulse response of the channel
