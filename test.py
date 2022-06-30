@@ -9,8 +9,8 @@ results = statistical_eye(pulse_response=pulse_response,
                                         A_window_multiplier=1.5, 
                                         M=4, 
                                         sample_size=16, 
-                                        window_size=128, 
                                         target_BER=2.4e-4,
                                         plot=True, 
                                         noise_flag=False, 
-                                        jitter_flag=False)
+                                        jitter_flag=False,
+                                        upsampling=1)
