@@ -20,6 +20,7 @@ named_tuple = time.localtime() # get struct_time
 time_string = time.strftime("%m_%d_%Y_%H_%M_%S", named_tuple)
 
 def statistical_eye(pulse_response, 
+                    idx_main, # usually it is np.argmax(abs(pulse_response)) if pulse_response's DC offset is zero, but may be something else... 
                     samples_per_symbol=8, 
                     M=4, # 2 for NRZ and 4 for PAM4
                     vh_size=2048, # vertical voltage discretized level
@@ -81,7 +82,7 @@ def statistical_eye(pulse_response,
     samples_per_symbol = samples_per_symbol * upsampling
     window_size = samples_per_symbol
     
-    idx_main = np.argmax(abs(pulse_input)) # this is the c0, main cursor, from OIF doc, see section 2.C.5 and 2.B.2
+    # idx_main = np.argmax(abs(pulse_input)) # this is the c0, main cursor, from OIF doc, see section 2.C.5 and 2.B.2
 
     if M == 2:
         d = np.array([-1, 1]).reshape(1,M) # direction of pulse polarity
