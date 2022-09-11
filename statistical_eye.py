@@ -372,7 +372,7 @@ def statistical_eye(pulse_response,
         
         ax.set_ylabel('voltage (mV)')
         ax.set_xlabel('time (UI)')
-        fig.savefig(f'pics/stateye_{time_string}.eps', format='eps' bbox_inches='tight')
+        fig.savefig(f'pics/stateye_{time_string}.eps', format='eps', bbox_inches='tight')
         
     return{'center_COM (dB)': COM,
                'eye_heights (V)': eye_heights,
