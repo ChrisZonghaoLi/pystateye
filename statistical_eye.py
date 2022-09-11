@@ -361,18 +361,18 @@ def statistical_eye(pulse_response,
         contour_plot = ax.contour(np.arange(0.5, window_size), np.arange(0.5, vh.shape[0]), np.array(contour_list), levels=[target_BER], colors='yellow')
         ax.clabel(contour_plot, inline=True)
         if noise_flag == True and jitter_flag == False:
-            ax.set_title('$\mu_{{noise}}$={:.2e} samples | $\sigma_{{noise}}$={:.2e} V'.format(mu_noise, sigma_noise))
+            ax.set_title('$\mu_{{noise}}$={:.2e} samples | $\sigma_{{noise}}$={:.2e} V\n'.format(mu_noise, sigma_noise))
         elif jitter_flag == True and noise_flag == False:
-            ax.set_title('$\mu_{{jitter}}$={:.2e} UI | $\sigma_{{jitter}}$={:.2e} UI'.format(mu_jitter/samples_per_symbol, sigma_jitter/samples_per_symbol))
+            ax.set_title('$\mu_{{jitter}}$={:.2e} UI | $\sigma_{{jitter}}$={:.2e} UI\n'.format(mu_jitter/samples_per_symbol, sigma_jitter/samples_per_symbol))
         elif jitter_flag == True and noise_flag == True:
             ax.set_title('''$\mu_{{noise}}$={:.2e} V | $\sigma_{{noise}}$={:.2e} V 
-                                 $\mu_{{jitter}}$={:.2e} UI | $\sigma_{{jitter}}$={:.2e} UI '''.format(mu_noise, sigma_noise, mu_jitter/samples_per_symbol, sigma_jitter/samples_per_symbol))
+                                 $\mu_{{jitter}}$={:.2e} UI | $\sigma_{{jitter}}$={:.2e} UI\n '''.format(mu_noise, sigma_noise, mu_jitter/samples_per_symbol, sigma_jitter/samples_per_symbol))
         else:
             ax.set_title('Statistical Eye without Jitter or Noise')
         
         ax.set_ylabel('voltage (mV)')
         ax.set_xlabel('time (UI)')
-        # fig.savefig(f'pics/stateye_{time_string}.png', bbox_inches='tight')
+        fig.savefig(f'pics/stateye_{time_string}.eps', format='eps' bbox_inches='tight')
         
     return{'center_COM (dB)': COM,
                'eye_heights (V)': eye_heights,
