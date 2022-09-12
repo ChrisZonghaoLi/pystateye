@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from scipy.stats import norm
 from scipy.signal import argrelextrema
 from scipy.interpolate import interp1d
+import pandas as pd
 
 import seaborn as sns
 
@@ -20,24 +21,26 @@ named_tuple = time.localtime() # get struct_time
 time_string = time.strftime("%m_%d_%Y_%H_%M_%S", named_tuple)
 
 def statistical_eye(pulse_response, 
-                    samples_per_symbol=8, 
-                    M=4, # 2 for NRZ and 4 for PAM4
-                    vh_size=2048, # vertical voltage discretized level
-                    A_window_multiplier=2, # control the vertical viewing space of the plot
-                    sample_size=16,
-                    mu_noise=0, # V
-                    sigma_noise=1.33e-4, # V 
-                    mu_jitter=0.0125, # in terms of UI
-                    sigma_jitter=0.015, # in terms of UI
-                    target_BER=2.4e-4,
-                    noise_flag=False,
-                    jitter_flag=False,
-                    plot=False,
-                    pdf_conv_flag=True, # if you want to do pdf convolution to find all ISI conbinations, False will then brute force find all combination
-                    diff_signal=True, # eye diagram amplitude will be half of the pulse response magnitude
-                    upsampling=16, # interpolate the time domain signal to give better visulization, also allows modeling higher sampling rate without frequency domain extrapolation
-                    interpolation_type='linear' # interpolation scheme, can be either 'linear' or 'cubic'
-                    ):
+                                samples_per_symbol=8, 
+                                M=4, # 2 for NRZ and 4 for PAM4
+                                vh_size=2048, # vertical voltage discretized level, has be even
+                                A_window_multiplier=2, # control the vertical viewing space of the plot
+                                sample_size=32, 
+                                mu_noise=0, # V
+                                sigma_noise=1.33e-4, # V 
+                                mu_jitter=0.0125, # in terms of UI
+                                sigma_jitter=0.015, # in terms of UI
+                                target_BER=2.4e-4,
+                                noise_flag=False,
+                                jitter_flag=False,
+                                plot=False,
+                                pdf_conv_flag=True, # if you want to do pdf convolution to find all ISI conbinations, False will then brute force find all combination
+                                diff_signal=True, # eye diagram amplitude will be half of the pulse response magnitude
+                                upsampling=16, # interpolate the time domain signal to give better visulization, also allows modeling higher sampling rate without frequency domain extrapolation
+                                interpolation_type='linear', # interpolation scheme, can be either 'linear' or 'cubic'
+                                vh_tick = 5, # tick scale in mV for voltage axis
+                                color_mask = 0.0001
+                                ):
     '''
         https://www.oiforum.com/wp-content/uploads/2019/01/OIF-CEI-04.0.pdf
         implementation of statistical eye diagram with the inclusion of noise and jitter
@@ -356,22 +359,71 @@ def statistical_eye(pulse_response,
     # plot = True
     if plot == True:
         fig, ax = plt.subplots(1,1)
-        eye_df = pd.DataFrame(eye, index=np.around(np.flip(vh)*1e3, 2), columns=np.around(np.arange(int(-window_size/2), int(window_size/2))/samples_per_symbol, 2))    
-        heatmap = sns.heatmap(data=eye_df, ax=ax, cmap='rainbow')
-        contour_plot = ax.contour(np.arange(0.5, window_size), np.arange(0.5, vh.shape[0]), np.array(contour_list), levels=[target_BER], colors='yellow')
-        ax.clabel(contour_plot, inline=True)
+        
+        _y_axis_heatmap_up = np.linspace(0, A_window_max, int(vh_size/2)+1)[1:] * 1e3 # mV
+        _y_axis_heatmap_down = np.linspace(A_window_min, 0, int(vh_size/2)+1)[1:] * 1e3 #mV
+        y_axis_heatmap = np.concatenate((_y_axis_heatmap_down, _y_axis_heatmap_up))
+        yticklabels = np.flip(y_axis_heatmap)
+        _tick_up = []
+        i = 0
+        while i * vh_tick <= A_window_max * 1e3:
+            _tick_up.append(i)
+            i = i + 1
+            
+        _tick_up = np.array(_tick_up) * vh_tick
+        _tick_down = _tick_up * -1
+        _tick = np.sort(np.concatenate((_tick_up, _tick_down)))
+            
+        for i in _tick:
+            idx = (np.abs(yticklabels-i)).argmin()
+            yticklabels[idx] = i
+            
+        yticklabels = np.round(yticklabels,2)
+        xticklabels = np.around(np.arange(int(-window_size/2), int(window_size/2))/samples_per_symbol,1)
+        
+        eye_df = pd.DataFrame(eye)
+        # color bar notation in scientific notation
+        fmt = ticker.ScalarFormatter(useMathText=(True))
+        fmt.set_scientific(True)
+        fmt.set_powerlimits((-2,2))
+        heatmap = sns.heatmap(data=eye_df, xticklabels=xticklabels, yticklabels=yticklabels, cmap='rainbow', mask=(eye_df<=color_mask), cbar_kws={'format': fmt})
+              
+        heatmap.set_xticklabels(heatmap.get_xmajorticklabels(), fontsize=14)
+        heatmap.set_yticklabels(heatmap.get_ymajorticklabels(), fontsize=14)
+        
+        # reduce the density of x axis
+        for ind, label in enumerate(heatmap.get_xticklabels()):
+            if ind % 10 == 0 :  # every 2nd label is kept
+                label.set_visible(True)
+            else:
+                label.set_visible(False)
+                ax.xaxis.get_major_ticks()[ind].tick1line.set_visible(False)
+        # reduce the density of y axis
+        for ind, label in enumerate( heatmap.get_yticklabels()): 
+            if float(label.get_text()) % 5 == 0:
+                label.set_visible(True)
+            else:
+                label.set_visible(False)
+                ax.yaxis.get_major_ticks()[ind].tick1line.set_visible(False)
+        
+        # add frame to the heatmap
+        for _, spine in heatmap.spines.items():
+            spine.set_visible(True)
+        
+        contour_plot = ax.contour(np.arange(0.5, window_size), np.arange(0.5, vh.shape[0]), np.array(contour_list), levels=[target_BER], colors='black')
+        ax.clabel(contour_plot, inline=True, fmt='%.1e')
         if noise_flag == True and jitter_flag == False:
-            ax.set_title('$\mu_{{noise}}$={:.2e} samples | $\sigma_{{noise}}$={:.2e} V\n'.format(mu_noise, sigma_noise))
+            ax.set_title('$\mu_{{noise}}$={:.2e} samples | $\sigma_{{noise}}$={:.2e} V \n'.format(mu_noise, sigma_noise))
         elif jitter_flag == True and noise_flag == False:
-            ax.set_title('$\mu_{{jitter}}$={:.2e} UI | $\sigma_{{jitter}}$={:.2e} UI\n'.format(mu_jitter/samples_per_symbol, sigma_jitter/samples_per_symbol))
+            ax.set_title('$\mu_{{jitter}}$={:.2e} UI | $\sigma_{{jitter}}$={:.2e} UI \n'.format(mu_jitter/samples_per_symbol, sigma_jitter/samples_per_symbol))
         elif jitter_flag == True and noise_flag == True:
             ax.set_title('''$\mu_{{noise}}$={:.2e} V | $\sigma_{{noise}}$={:.2e} V 
-                                 $\mu_{{jitter}}$={:.2e} UI | $\sigma_{{jitter}}$={:.2e} UI\n '''.format(mu_noise, sigma_noise, mu_jitter/samples_per_symbol, sigma_jitter/samples_per_symbol))
+                                 $\mu_{{jitter}}$={:.2e} UI | $\sigma_{{jitter}}$={:.2e} UI \n'''.format(mu_noise, sigma_noise, mu_jitter/samples_per_symbol, sigma_jitter/samples_per_symbol))
         else:
             ax.set_title('Statistical Eye without Jitter or Noise')
         
-        ax.set_ylabel('voltage (mV)')
-        ax.set_xlabel('time (UI)')
+        ax.set_ylabel('voltage (mV)', fontsize=14)
+        ax.set_xlabel('time (UI)', fontsize=14)
         fig.savefig(f'pics/stateye_{time_string}.eps', format='eps', bbox_inches='tight')
         
     return{'center_COM (dB)': COM,
@@ -383,5 +435,25 @@ def statistical_eye(pulse_response,
                'eye_widths_mean (UI)': eye_widths_mean,
                'A_levels (V)': A_levels,
                'eye_center_levels (V)': eye_center_levels,
-               'stateye': eye
+               'stateye': eye,
+               'heatmap': heatmap,
+               'yticklabels': yticklabels
         }
+
+if __name__ == "__main__":
+
+    pulse_response_dir = '/autofs/fs1.ece/fs1.eecg.tcc/lizongh2/serdes/pulse_response'
+    pulse_response_name = 'Book1.csv'
+    channel_pulse_response = pd.read_csv(pulse_response_dir+pulse_response_name).to_numpy().reshape(-1)
+    idx_main = np.argmax(abs(channel_pulse_response)) # this is the c0, main cursor, from OIF doc, see section 2.C.5 and 2.B.2
+
+    _ = statistical_eye(pulse_response=channel_pulse_response, 
+                                            samples_per_symbol=8, 
+                                            A_window_multiplier=1.5, 
+                                            sigma_noise=0.000979, 
+                                            M=4, 
+                                            sample_size=16, 
+                                            target_BER=2.4e-4,
+                                            plot=True, 
+                                            noise_flag=False, 
+                                            jitter_flag=False)
