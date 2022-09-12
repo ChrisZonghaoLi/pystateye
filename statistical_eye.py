@@ -39,7 +39,8 @@ def statistical_eye(pulse_response,
                                 upsampling=16, # interpolate the time domain signal to give better visulization, also allows modeling higher sampling rate without frequency domain extrapolation
                                 interpolation_type='linear', # interpolation scheme, can be either 'linear' or 'cubic'
                                 vh_tick = 5, # tick scale in mV for voltage axis
-                                color_mask = 0.0001
+                                color_mask = 0.0001,
+                                contour_label = False
                                 ):
     '''
         https://www.oiforum.com/wp-content/uploads/2019/01/OIF-CEI-04.0.pdf
@@ -411,7 +412,8 @@ def statistical_eye(pulse_response,
             spine.set_visible(True)
         
         contour_plot = ax.contour(np.arange(0.5, window_size), np.arange(0.5, vh.shape[0]), np.array(contour_list), levels=[target_BER], colors='black')
-        ax.clabel(contour_plot, inline=True, fmt='%.1e')
+        if contour_label == True:
+            ax.clabel(contour_plot, inline=True, fmt='%.1e')
         if noise_flag == True and jitter_flag == False:
             ax.set_title('$\mu_{{noise}}$={:.2e} samples | $\sigma_{{noise}}$={:.2e} V \n'.format(mu_noise, sigma_noise))
         elif jitter_flag == True and noise_flag == False:
@@ -422,8 +424,8 @@ def statistical_eye(pulse_response,
         else:
             ax.set_title('Statistical Eye without Jitter or Noise')
         
-        ax.set_ylabel('voltage (mV)', fontsize=14)
-        ax.set_xlabel('time (UI)', fontsize=14)
+        ax.set_ylabel('Voltage (mV)', fontsize=14)
+        ax.set_xlabel('Time (UI)', fontsize=14)
         fig.savefig(f'pics/stateye_{time_string}.eps', format='eps', bbox_inches='tight')
         
     return{'center_COM (dB)': COM,
@@ -436,8 +438,6 @@ def statistical_eye(pulse_response,
                'A_levels (V)': A_levels,
                'eye_center_levels (V)': eye_center_levels,
                'stateye': eye,
-               'heatmap': heatmap,
-               'yticklabels': yticklabels
         }
 
 if __name__ == "__main__":
