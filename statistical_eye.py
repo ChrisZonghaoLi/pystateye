@@ -378,9 +378,12 @@ def statistical_eye(pulse_response,
         for i in _tick:
             idx = (np.abs(yticklabels-i)).argmin()
             yticklabels[idx] = i
-            
-        yticklabels = np.round(yticklabels,2)
-        xticklabels = np.around(np.arange(int(-window_size/2), int(window_size/2))/samples_per_symbol,1)
+                    
+        _tick_time = np.array([-0.5, -0.4, -0.3, -0.2, -0.1, 0, 0.1, 0.2, 0.3, 0.4, 0.5])
+        xticklabels = np.arange(int(-window_size/2), int(window_size/2))/samples_per_symbol
+        for i in _tick_time:
+            idx = (np.abs(xticklabels-i)).argmin()
+            xticklabels[idx] = i
         
         eye_df = pd.DataFrame(eye)
         # color bar notation in scientific notation
@@ -394,13 +397,14 @@ def statistical_eye(pulse_response,
         
         # reduce the density of x axis
         for ind, label in enumerate(heatmap.get_xticklabels()):
-            if ind % 10 == 0 :  # every 2nd label is kept
+            if float(label.get_text())*10 % 1 == 0:
                 label.set_visible(True)
             else:
                 label.set_visible(False)
                 ax.xaxis.get_major_ticks()[ind].tick1line.set_visible(False)
+        
         # reduce the density of y axis
-        for ind, label in enumerate( heatmap.get_yticklabels()): 
+        for ind, label in enumerate(heatmap.get_yticklabels()): 
             if float(label.get_text()) % 5 == 0:
                 label.set_visible(True)
             else:
@@ -442,18 +446,24 @@ def statistical_eye(pulse_response,
 
 if __name__ == "__main__":
 
-    pulse_response_dir = '/autofs/fs1.ece/fs1.eecg.tcc/lizongh2/serdes/pulse_response'
-    pulse_response_name = 'Book1.csv'
+    pulse_response_dir = '/autofs/fs1.ece/fs1.eecg.tcc/lizongh2/serdes/pulse_response/'
+    pulse_response_name = 'ml_final_250um.csv'
+    # noise:
+        # 250um: 7.384949841885791e-04
+        # 500um: 7.413938529920631e-04
+        # 5mm: 7.411989548792984e-04
     channel_pulse_response = pd.read_csv(pulse_response_dir+pulse_response_name).to_numpy().reshape(-1)
     idx_main = np.argmax(abs(channel_pulse_response)) # this is the c0, main cursor, from OIF doc, see section 2.C.5 and 2.B.2
 
     _ = statistical_eye(pulse_response=channel_pulse_response, 
                                             samples_per_symbol=8, 
-                                            A_window_multiplier=1.5, 
-                                            sigma_noise=0.000979, 
+                                            A_window_multiplier=2, 
+                                            sigma_noise=7.384949841885791e-04, 
                                             M=4, 
-                                            sample_size=16, 
+                                            sample_size=32, 
                                             target_BER=2.4e-4,
                                             plot=True, 
-                                            noise_flag=False, 
-                                            jitter_flag=False)
+                                            noise_flag=True, 
+                                            jitter_flag=True,
+                                            mu_jitter=0,
+                                            sigma_jitter=1.5e-2)
