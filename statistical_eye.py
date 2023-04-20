@@ -430,7 +430,9 @@ def statistical_eye(pulse_response,
         
         ax.set_ylabel('Voltage (mV)', fontsize=14)
         ax.set_xlabel('Time (UI)', fontsize=14)
+        # save the picture to disk
         fig.savefig(f'pics/stateye_{time_string}.eps', format='eps', bbox_inches='tight')
+        fig.savefig(f'pics/stateye_{time_string}.png', format='png', bbox_inches='tight')
         
     return{'center_COM (dB)': COM,
                'eye_heights (V)': eye_heights,
