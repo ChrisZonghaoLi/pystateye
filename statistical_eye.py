@@ -21,27 +21,27 @@ named_tuple = time.localtime() # get struct_time
 time_string = time.strftime("%m_%d_%Y_%H_%M_%S", named_tuple)
 
 def statistical_eye(pulse_response, 
-                                samples_per_symbol=8, 
-                                M=4, # 2 for NRZ and 4 for PAM4
-                                vh_size=2048, # vertical voltage discretized level, has be even
-                                A_window_multiplier=2, # control the vertical viewing space of the plot
-                                sample_size=32, 
-                                mu_noise=0, # V
-                                sigma_noise=1.33e-4, # V 
-                                mu_jitter=0.0125, # in terms of UI
-                                sigma_jitter=0.015, # in terms of UI
-                                target_BER=2.4e-4,
-                                noise_flag=False,
-                                jitter_flag=False,
-                                plot=False,
-                                pdf_conv_flag=True, # if you want to do pdf convolution to find all ISI conbinations, False will then brute force find all combination
-                                diff_signal=True, # eye diagram amplitude will be half of the pulse response magnitude
-                                upsampling=16, # interpolate the time domain signal to give better visulization, also allows modeling higher sampling rate without frequency domain extrapolation
-                                interpolation_type='linear', # interpolation scheme, can be either 'linear' or 'cubic'
-                                vh_tick = 5, # tick scale in mV for voltage axis
-                                color_mask = 0.0001,
-                                contour_label = False
-                                ):
+                    samples_per_symbol=8, 
+                    M=4, # 2 for NRZ and 4 for PAM4
+                    vh_size=2048, # vertical voltage discretized level, has be even
+                    A_window_multiplier=2, # control the vertical viewing space of the plot
+                    sample_size=32, 
+                    mu_noise=0, # V
+                    sigma_noise=1.33e-4, # V 
+                    mu_jitter=0.0125, # in terms of UI
+                    sigma_jitter=0.015, # in terms of UI
+                    target_BER=2.4e-4,
+                    noise_flag=False,
+                    jitter_flag=False,
+                    plot=False,
+                    pdf_conv_flag=True, # if you want to do pdf convolution to find all ISI conbinations, False will then brute force find all combination
+                    diff_signal=True, # eye diagram amplitude will be half of the pulse response magnitude
+                    upsampling=16, # interpolate the time domain signal to give better visulization, also allows modeling higher sampling rate without frequency domain extrapolation
+                    interpolation_type='linear', # interpolation scheme, can be either 'linear' or 'cubic'
+                    vh_tick = 5, # tick scale in mV for voltage axis
+                    color_mask = 0.0001,
+                    contour_label = False
+                    ):
     '''
         https://www.oiforum.com/wp-content/uploads/2019/01/OIF-CEI-04.0.pdf
         implementation of statistical eye diagram with the inclusion of noise and jitter
