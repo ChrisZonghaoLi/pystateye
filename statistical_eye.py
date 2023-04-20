@@ -435,15 +435,15 @@ def statistical_eye(pulse_response,
         fig.savefig(f'pics/stateye_{time_string}.png', format='png', bbox_inches='tight')
         
     return{'center_COM (dB)': COM,
-               'eye_heights (V)': eye_heights,
-               'eye_heights_mean (V)': eye_heights_mean,
-               'distortion_heights (V)': distortion_heights,
-               'distortion_heights_mean (V)': distortion_heights_mean,
-               'eye_widths (UI)': eye_widths,
-               'eye_widths_mean (UI)': eye_widths_mean,
-               'A_levels (V)': A_levels,
-               'eye_center_levels (V)': eye_center_levels,
-               'stateye': eye,
+           'eye_heights (V)': eye_heights,
+           'eye_heights_mean (V)': eye_heights_mean,
+           'distortion_heights (V)': distortion_heights,
+           'distortion_heights_mean (V)': distortion_heights_mean,
+           'eye_widths (UI)': eye_widths,
+           'eye_widths_mean (UI)': eye_widths_mean,
+           'A_levels (V)': A_levels,
+           'eye_center_levels (V)': eye_center_levels,
+           'stateye': eye,
         }
 
 if __name__ == "__main__":
