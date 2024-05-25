@@ -5,6 +5,9 @@
 ## Introduction
 Most of the work here is based on the OIF standard (https://www.oiforum.com/wp-content/uploads/2019/01/OIF-CEI-04.0.pdf)
 
+## What makes this special?
+Compared to the Matlab statistical eye diagram plotter, this Python implementation allows you to add impairments such as noise and jitter to the statistical eye diagram.
+
 ## Repository map
 - <'statistical_eye.py'>: main file
 - <'channel_pulse_response_test.csv'>: a test example used to test <'statistical_eye.py'>
@@ -23,12 +26,12 @@ implementation of statistical eye diagram with the inclusion of noise and jitter
   integrity has been improved, it is just an artifact that you are making the bin resolution higher. You should
   increase the size of <vh_size> until the artifact disappears (the eye does not change w.r.t. the size of <vh_size>).
   A good example is imaging you have a Gaussian distributed dataset you want to plot, which falls in between -1 and 1.
-  If your bin resolution is super coarse, such as only two intervals, one is from -1 to 0 and another one is from 0 to 1,
-  then you won't see any bell curve but just two bars that has the same counts. To see the bell curve, you need to 
+  If your bin resolution is super coarse, such as only two intervals, one from -1 to 0 and another one from 0 to 1,
+  then you won't see any bell curve but just two bars that have the same counts. To see the bell curve, you need to 
   increase the bin resolution. 
   
   Another concern is regarding some numerical issues of the convolution, such as the boundary effects. This may result
-  in the asymmetry of the eye diagram despite no linearity issue and the bin intervals is being perfectly symmetric.
+  in the asymmetry of the eye diagram despite no linearity issue and the bin intervals being perfectly symmetric.
   To mitigate this issue, a large <vh_size> may be required. But then this will defeat the purpose of being fast using convolution...
                      
 - M=4: 2 for NRZ and 4 for PAM4
