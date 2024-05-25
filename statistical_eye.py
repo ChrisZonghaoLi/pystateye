@@ -21,49 +21,65 @@ named_tuple = time.localtime() # get struct_time
 time_string = time.strftime("%m_%d_%Y_%H_%M_%S", named_tuple)
 
 def statistical_eye(pulse_response, 
-                    samples_per_symbol=8, 
-                    M=4, # 2 for NRZ and 4 for PAM4
-                    vh_size=2048, # vertical voltage discretized level, has be even
-                    A_window_multiplier=2, # control the vertical viewing space of the plot
-                    sample_size=32, 
-                    mu_noise=0, # V
-                    sigma_noise=1.33e-4, # V 
-                    mu_jitter=0.0125, # in terms of UI
-                    sigma_jitter=0.015, # in terms of UI
-                    target_BER=2.4e-4,
-                    noise_flag=False,
-                    jitter_flag=False,
-                    plot=False,
-                    pdf_conv_flag=True, # if you want to do pdf convolution to find all ISI conbinations, False will then brute force find all combination
-                    diff_signal=True, # eye diagram amplitude will be half of the pulse response magnitude
-                    upsampling=16, # interpolate the time domain signal to give better visulization, also allows modeling higher sampling rate without frequency domain extrapolation
-                    interpolation_type='linear', # interpolation scheme, can be either 'linear' or 'cubic'
-                    vh_tick = 5, # tick scale in mV for voltage axis
-                    color_mask = 0.0001,
-                    contour_label = False
-                    ):
+                                samples_per_symbol=8, 
+                                M=4, # 2 for NRZ and 4 for PAM4
+                                vh_size=2048, # vertical voltage discretized level, has to be even, and has to be large enough (bin interval should be very small for more accurate results)
+                                A_window_multiplier=2, # control the vertical viewing space of the plot
+                                sample_size=16, 
+                                mu_noise=0, # V
+                                sigma_noise=1.33e-4, # V 
+                                mu_jitter=0.0125, # in terms of UI
+                                sigma_jitter=0.015, # in terms of UI
+                                target_BER=2.4e-4,
+                                noise_flag=False,
+                                jitter_flag=False,
+                                plot=False,
+                                pdf_conv_flag=False, # if you want to do pdf convolution to find all ISI conbinations, False will then brute force find all combination
+                                diff_signal=True, # eye diagram amplitude will be half of the pulse response magnitude
+                                upsampling=16, # interpolate the time domain signal to give better visulization, also allows modeling higher sampling rate without frequency domain extrapolation
+                                interpolation_type='linear', # interpolation scheme, can be either 'linear' or 'cubic'
+                                vh_tick = 5, # tick scale in mV for voltage axis
+                                color_mask = 0.0001,
+                                contour_label = False,
+                                save_pics = False
+                                ):
     '''
         https://www.oiforum.com/wp-content/uploads/2019/01/OIF-CEI-04.0.pdf
         implementation of statistical eye diagram with the inclusion of noise and jitter
         
-        pulse_response: pulse response of the channel
-        samples_per_symbol=128: samples per symbol
-        vh_size=2048: vertical voltage discretized level
-        M=4: 2 for NRZ and 4 for PAM4
-        A_window_multiplier=2: control the vertical viewing space of the plot
-        sample_size=16: how many symbols you want to sample across the pulse response, too many will lead to long runtime
-        mu_noise=0: mean value of noise in V, assuming Gaussian
-        sigma_noise=1.33e-4: std value of noise in V, assuming Gaussian
-        mu_jitter=0.0125: deterministic jitter, in terms of UI
-        sigma_jitter=0.015: random jitter, in terms of UI
-        target_BER=2.4e-4: target BER rate
-        noise_flag=False: switch for including noise or not
-        jitter_flag=False: switch for including jitter or not
-        plot=False: switch for plotting eye diagram or not
-        pdf_conv_flag=True: if you want to do pdf convolution to find all ISI conbinations, False will then brute force find all combination
-        diff_signal=True: eye diagram amplitude will be half of the pulse response magnitude
-        upsampling=16: interpolate the time domain signal to give better visulization, also allows modeling higher sampling rate without frequency domain extrapolation
-        interpolation_type='linear': interpolation scheme, can be either 'linear' or 'cubic'
+        - pulse_response: pulse response of the channel
+        - samples_per_symbol=8: samples per symbol
+        - vh_size=2048: vertical voltage discretized level, has  to be even, and it has to be large enough. 
+                                
+                                Its histogram bin interval should be very small for more accurate results. 
+                                You will see that as you keep increase <vh_size>, eye diagram gradually opens up. It is not because signal
+                                integraty has been improved, it is just an artifact that you are making the bin resolution higher. You should
+                                increase the size of <vh_size> until the artifact disappears (eye does not change w.r.t. the size of <vh_size>).
+                                A good example is imaging you have a Gaussian distrebuted dataset you want to plot, which falls in between -1 and 1.
+                                If your bin resolution is super coarse, such as only two intervals, one is from -1 to 0 and another one is from 0 to 1,
+                                then you won't see any bell curve but just two bars that has the same counts. To see the bell curve, you need to 
+                                increase the bin resolution. 
+                                
+                                Another concern is regarding some numerical isssue of the convolution, such as the boundary effects. This may result
+                                in the assymetry of the eye diagram despite there is no linearity issue and the bin intervals are perfectly symmetric.
+                                To mitigate this issue, large <vh_size> may be required. But then this will defeat the purpose of being fast using convolution...                       
+        - M=4: 2 for NRZ and 4 for PAM4
+        - A_window_multiplier=2: control the vertical viewing space of the plot
+        - sample_size=16: how many symbols you want to sample across the pulse response, too many will lead to long runtime
+        - mu_noise=0: mean value of noise in V, assuming Gaussian
+        - sigma_noise=1.33e-4: std value of noise in V, assuming Gaussian
+        - mu_jitter=0.0125: deterministic jitter, in terms of UI
+        - sigma_jitter=0.015: random jitter, in terms of UI
+        - target_BER=2.4e-4: target BER rate
+        - noise_flag=False: switch for including noise or not
+        - jitter_flag=False: switch for including jitter or not
+        - plot=False: switch for plotting eye diagram or not. You can turn it off if you use it in batch mode
+        - pdf_conv_flag=False: if you want to do pdf convolution to find all ISI conbinations, False will then brute force find all combination.
+                                Either method has its pros and cons, but if the conputation time/resource is not an issue, brute force is the most accurate method.
+        - diff_signal=True: eye diagram amplitude will be half of the pulse response magnitude
+        - upsampling=16: interpolate the time domain signal to give better visulization, also allows modeling higher sampling rate without frequency domain extrapolation
+        - interpolation_type='linear': interpolation scheme, can be either 'linear' or 'cubic'
+        - save_pics = False: save the picture to the disk or not
     '''
     
     # remove the head and tail zero and remove DC component
@@ -82,39 +98,58 @@ def statistical_eye(pulse_response,
     f = interp1d(x, pulse_input, kind=interpolation_type)
     x_new = np.linspace(0, len(pulse_input)-1, num=len(pulse_input)*upsampling)
     pulse_input = f(x_new)
-    samples_per_symbol = samples_per_symbol * upsampling
+    samples_per_symbol = samples_per_symbol * upsampling # do some upsampling to create better visulization
     window_size = samples_per_symbol
     
     idx_main = np.argmax(abs(pulse_input)) # this is the c0, main cursor, from OIF doc, see section 2.C.5 and 2.B.2
 
     if M == 2:
+        print('NRZ is selected as the modulation scheme.')
         d = np.array([-1, 1]).reshape(1,M) # direction of pulse polarity
-        if pdf_conv_flag == False and sample_size >= 16:
-            sample_size = 16
+        if pdf_conv_flag == False:
+            print("Using brute force to find all signal level combinations, a more accurate method.")
+            if sample_size >= 16:
+                print("You should avoid too many samples when using brute force to find all ISI combinations, otherwise it will take a long time.")
+                sample_size = 16
+        if pdf_conv_flag == True:
+            print("Using convolution to find all signal level combinations, it is a faster method.")
+            print("You should use large enough <vh_size> to create finer bin resolution, otherwise eyes will not open as the histogram bins are too coarse.")
     elif M == 4:
+        print('PAM-4 is selected as the modulation scheme.')
         d = np.array([-1, -1/3, 1/3, 1]).reshape(1,M)  # direction of pulse polarity
-        if pdf_conv_flag == False and sample_size >= 9:
-            sample_size = 9
+        if pdf_conv_flag == False :
+            print("Using brute force to find all signal level combinations, a more accurate method.")
+            if sample_size >= 9:
+                print("You should avoid too many samples when using brute force to find all ISI combinations, otherwise it will take a long time.")
+                sample_size = 9
+        if pdf_conv_flag == True:
+            print("Using convolution to find all signal level combinations, it is a faster method.")
+            print("You should use large enough <vh_size> to create finer bin resolution, otherwise eyes will not open as the histogram bins are too coarse.")
     else:
         print('M has to be either 2 or 4.')
 
     A_window_min = abs(pulse_input[idx_main]) * -A_window_multiplier
     A_window_max = abs(pulse_input[idx_main]) * A_window_multiplier
-    mybin_edges = np.linspace(A_window_min, A_window_max, vh_size+1) # my bin edges
-    vh = 0.5*(mybin_edges[1:] + mybin_edges[:-1])
+    
+    mybin_edges_up = np.linspace(0, A_window_max, int(vh_size/2)+1)[1:]
+    mybin_edges_down = np.linspace(A_window_min, 0, int(vh_size/2)+1)
+    mybin_edges = np.concatenate((mybin_edges_down, mybin_edges_up))
+    
+    # mybin_edges = np.linspace(A_window_min, A_window_max, vh_size+1) # my bin edges
+    vh = 0.5*(mybin_edges[1:] + mybin_edges[:-1]) # the center point of each bin (the center point of each successive two edges)
     
     pdf_list = []
     for idx in range(-int(window_size/2),int(window_size/2)):
         idx_sampled = idx_main+idx
         sampled_points = []
         
-        # i=0 tp include the sampled main cursor, points were sampled around the main coursor
+        # i=0 tp include the sampled main cursor, points were sampled around the main cursor
         i = 0
         while idx_sampled - i*samples_per_symbol >= 0:
             sampled_points.append(idx_sampled - i*samples_per_symbol)
             i = i + 1
     
-        # i=1 tp exclude the sampled main cursor, points were sampled around the main coursor
+        # i=1 tp exclude the sampled main cursor, points were sampled around the main cursor
         j = 1 
         while idx_sampled + j*samples_per_symbol <= len(pulse_input)-1:
             sampled_points.append(idx_sampled + j*samples_per_symbol)
@@ -124,7 +159,7 @@ def statistical_eye(pulse_response,
         sampled_amps = np.array([pulse_input[i] for i in sampled_points]).reshape(-1,1)
         sampled_amps = sampled_amps @ d 
         
-        # using convolution to find the ISI pdf over the entire pulse response is faster than finding the all combinations then finding the histogram
+        # using convolution to find the ISI pdf over the entire pulse response is faster than finding the all combinations and then finding the histogram
         if pdf_conv_flag == True:
             pdf, _ = np.histogram(sampled_amps[0], mybin_edges) 
             pdf = pdf/sum(pdf)
@@ -148,7 +183,6 @@ def statistical_eye(pulse_response,
     ####################### noise inclusion ###########################
     hist_list = []
     if noise_flag == True:
-        # mu_noise = 0
         noise_pdf = norm.pdf(vh, mu_noise, sigma_noise)
         noise_pdf = noise_pdf/sum(noise_pdf)
         for i in range(window_size):
@@ -159,7 +193,7 @@ def statistical_eye(pulse_response,
         hist_list = pdf_list
     
     ####################### jitter inclusion ###########################
-    # deterministic jitter, implemented as a dual dirac function
+    # deterministic jitter, implemented as a dual Dirac function
     jitter_xaxis_step_size = 1 # typically it should be smaller than <samples_per_symbol * 0.01>
     x_axis = np.linspace(-(window_size-1), window_size-1, int(2*(window_size-1)/jitter_xaxis_step_size)+1) 
     idx_middle = int((len(x_axis)-1)/2) 
@@ -192,7 +226,7 @@ def statistical_eye(pulse_response,
     ##################### contour ########################
     
     hist_list = np.array(hist_list).T
-    # find all voltage level at eye centers
+    # find all voltage levels at eye centers
     A_pulse_max = pulse_input[idx_main]  
     if A_pulse_max >= 0:
         A_levels = A_pulse_max * d[0] * -1 # simply for consistency: we want this list to go from positive voltage levels to negative levels
@@ -214,8 +248,8 @@ def statistical_eye(pulse_response,
         idx_line_horizontal =  (np.abs(vh-A_levels[i])).argmin()
         idx_A_levels_yaxis.append(idx_line_horizontal)
         
-    # find the idx of eye center on voltage axis (y-axis)
-    idx_eye_center_levels_yaxis = []  # this is the idx of eye center on voltage axis
+    # find the idx of the eye center on the voltage axis (y-axis)
+    idx_eye_center_levels_yaxis = []  # This is the idx of the eye center on the voltage axis
     for i in range(len(eye_center_levels)):
         idx_line_horizontal =  (np.abs(vh-eye_center_levels[i])).argmin()
         idx_eye_center_levels_yaxis.append(idx_line_horizontal)
@@ -280,7 +314,7 @@ def statistical_eye(pulse_response,
         # print(idx_below_BER_horizontal_center)
 
         _idx_with_center = np.argmax(_width_center)
-        _idx1_width_center = idx_below_BER_horizontal_center[_idx_with_center][0]  # make an assumption here: the biggest with jump on the horizontal center line is the center eye width
+        _idx1_width_center = idx_below_BER_horizontal_center[_idx_with_center][0]  # make an assumption here: the biggest with a jump on the horizontal center line is the center eye width
         _idx2_width_center = idx_below_BER_horizontal_center[_idx_with_center][1]
         eye_width_center = (_idx2_width_center - _idx1_width_center) 
         idx_eye_center_xaxis = _idx1_width_center + int(eye_width_center/2)
@@ -357,12 +391,11 @@ def statistical_eye(pulse_response,
     ##################### plot eye diagram ##########################
     # show heat map of the eye diagram
     # https://stackoverflow.com/questions/33282368/plotting-a-2d-heatmap-with-matplotlib
-    # plot = True
     if plot == True:
         fig, ax = plt.subplots(1,1)
         
         _y_axis_heatmap_up = np.linspace(0, A_window_max, int(vh_size/2)+1)[1:] * 1e3 # mV
-        _y_axis_heatmap_down = np.linspace(A_window_min, 0, int(vh_size/2)+1)[1:] * 1e3 #mV
+        _y_axis_heatmap_down = np.linspace(A_window_min, 0, int(vh_size/2)+1) * 1e3 #mV
         y_axis_heatmap = np.concatenate((_y_axis_heatmap_down, _y_axis_heatmap_up))
         yticklabels = np.flip(y_axis_heatmap)
         _tick_up = []
@@ -374,16 +407,15 @@ def statistical_eye(pulse_response,
         _tick_up = np.array(_tick_up) * vh_tick
         _tick_down = _tick_up * -1
         _tick = np.sort(np.concatenate((_tick_up, _tick_down)))
-            
         for i in _tick:
             idx = (np.abs(yticklabels-i)).argmin()
             yticklabels[idx] = i
-                    
+
         _tick_time = np.array([-0.5, -0.4, -0.3, -0.2, -0.1, 0, 0.1, 0.2, 0.3, 0.4, 0.5])
         xticklabels = np.arange(int(-window_size/2), int(window_size/2))/samples_per_symbol
         for i in _tick_time:
             idx = (np.abs(xticklabels-i)).argmin()
-            xticklabels[idx] = i
+            xticklabels[idx] = i # do some rough rounding to the grid
         
         eye_df = pd.DataFrame(eye)
         # color bar notation in scientific notation
@@ -395,7 +427,7 @@ def statistical_eye(pulse_response,
         heatmap.set_xticklabels(heatmap.get_xmajorticklabels(), fontsize=14)
         heatmap.set_yticklabels(heatmap.get_ymajorticklabels(), fontsize=14)
         
-        # reduce the density of x axis
+        # reduce the density of x-axis
         for ind, label in enumerate(heatmap.get_xticklabels()):
             if float(label.get_text())*10 % 1 == 0:
                 label.set_visible(True)
@@ -404,13 +436,16 @@ def statistical_eye(pulse_response,
                 ax.xaxis.get_major_ticks()[ind].tick1line.set_visible(False)
         
         # reduce the density of y axis
+        y_axis = []
         for ind, label in enumerate(heatmap.get_yticklabels()): 
             if float(label.get_text()) % 5 == 0:
                 label.set_visible(True)
+                y_axis.append(float(label.get_text()))
             else:
                 label.set_visible(False)
                 ax.yaxis.get_major_ticks()[ind].tick1line.set_visible(False)
-        
+        y_axis = np.array(y_axis)
+
         # add frame to the heatmap
         for _, spine in heatmap.spines.items():
             spine.set_visible(True)
@@ -424,48 +459,51 @@ def statistical_eye(pulse_response,
             ax.set_title('$\mu_{{jitter}}$={:.2e} UI | $\sigma_{{jitter}}$={:.2e} UI \n'.format(mu_jitter/samples_per_symbol, sigma_jitter/samples_per_symbol))
         elif jitter_flag == True and noise_flag == True:
             ax.set_title('''$\mu_{{noise}}$={:.2e} V | $\sigma_{{noise}}$={:.2e} V 
-                                 $\mu_{{jitter}}$={:.2e} UI | $\sigma_{{jitter}}$={:.2e} UI \n'''.format(mu_noise, sigma_noise, mu_jitter/samples_per_symbol, sigma_jitter/samples_per_symbol))
+                                  $\mu_{{jitter}}$={:.2e} UI | $\sigma_{{jitter}}$={:.2e} UI \n'''.format(mu_noise, sigma_noise, mu_jitter/samples_per_symbol, sigma_jitter/samples_per_symbol))
         else:
             ax.set_title('Statistical Eye without Jitter or Noise')
         
         ax.set_ylabel('Voltage (mV)', fontsize=14)
         ax.set_xlabel('Time (UI)', fontsize=14)
-        # save the picture to disk
-        fig.savefig(f'pics/stateye_{time_string}.eps', format='eps', bbox_inches='tight')
-        fig.savefig(f'pics/stateye_{time_string}.png', format='png', bbox_inches='tight')
+        
+        if save_pics == True:
+            fig.savefig(f'pics/stateye_{time_string}.pdf', format='pdf', bbox_inches='tight')
+            fig.savefig(f'pics/stateye_{time_string}.png', format='png', dpi=1200, bbox_inches='tight')
         
     return{'center_COM (dB)': COM,
-           'eye_heights (V)': eye_heights,
-           'eye_heights_mean (V)': eye_heights_mean,
-           'distortion_heights (V)': distortion_heights,
-           'distortion_heights_mean (V)': distortion_heights_mean,
-           'eye_widths (UI)': eye_widths,
-           'eye_widths_mean (UI)': eye_widths_mean,
-           'A_levels (V)': A_levels,
-           'eye_center_levels (V)': eye_center_levels,
-           'stateye': eye,
+               'eye_heights (V)': eye_heights,
+               'eye_heights_mean (V)': eye_heights_mean,
+               'distortion_heights (V)': distortion_heights,
+               'distortion_heights_mean (V)': distortion_heights_mean,
+               'eye_widths (UI)': eye_widths,
+               'eye_widths_mean (UI)': eye_widths_mean,
+               'A_levels (V)': A_levels,
+               'eye_center_levels (V)': eye_center_levels,
+               'stateye': eye,
         }
 
 if __name__ == "__main__":
 
     pulse_response_dir = '/autofs/fs1.ece/fs1.eecg.tcc/lizongh2/serdes/pulse_response/'
-    pulse_response_name = 'ml_final_250um.csv'
+    pulse_response_name = 'ml_final_5mm.csv'
     # noise:
         # 250um: 7.384949841885791e-04
         # 500um: 7.413938529920631e-04
         # 5mm: 7.411989548792984e-04
     channel_pulse_response = pd.read_csv(pulse_response_dir+pulse_response_name).to_numpy().reshape(-1)
-    idx_main = np.argmax(abs(channel_pulse_response)) # this is the c0, main cursor, from OIF doc, see section 2.C.5 and 2.B.2
+    idx_main = np.argmax(abs(channel_pulse_response)) # This is the c0, main cursor, from the OIF doc, see section 2.C.5 and 2.B.2
 
     _ = statistical_eye(pulse_response=channel_pulse_response, 
                                             samples_per_symbol=8, 
                                             A_window_multiplier=2, 
-                                            sigma_noise=7.384949841885791e-04, 
+                                            sigma_noise=7.411989548792984e-04, 
                                             M=4, 
-                                            sample_size=32, 
+                                            sample_size=16, 
                                             target_BER=2.4e-4,
+                                            pdf_conv_flag = False,
                                             plot=True, 
                                             noise_flag=True, 
                                             jitter_flag=True,
                                             mu_jitter=0,
-                                            sigma_jitter=1.5e-2)
+                                            sigma_jitter=1.5e-2,
+                                            save_pics=True)
