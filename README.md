@@ -1,6 +1,6 @@
 # pystateye - A Python Implementation of Statistical Eye Analysis and Visualization
 
-![](pics/5mm_ml.png)
+![](pics/5mm.png)
 
 ## Introduction
 Most of the work here are based on the OIF standard (https://www.oiforum.com/wp-content/uploads/2019/01/OIF-CEI-04.0.pdf)
